@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "compatibilityLevel": "JAVA_17",
+  "package": "dev.dominator.template.mixins",
+  "refmap": "shared.refmap.json",
+  "mixins": [
+    "HelloSharedMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

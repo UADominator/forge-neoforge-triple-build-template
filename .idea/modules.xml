@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/forge-neoforge-triple-build-template.client.iml" filepath="$PROJECT_DIR$/.idea/modules/forge-neoforge-triple-build-template.client.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/forge-neoforge-triple-build-template.main.iml" filepath="$PROJECT_DIR$/.idea/modules/forge-neoforge-triple-build-template.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/forge-neoforge-triple-build-template.server.iml" filepath="$PROJECT_DIR$/.idea/modules/forge-neoforge-triple-build-template.server.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/forge-neoforge-triple-build-template.shared.iml" filepath="$PROJECT_DIR$/.idea/modules/forge-neoforge-triple-build-template.shared.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/forge-neoforge-triple-build-template.test.iml" filepath="$PROJECT_DIR$/.idea/modules/forge-neoforge-triple-build-template.test.iml" />
+    </modules>
+  </component>
+</project>

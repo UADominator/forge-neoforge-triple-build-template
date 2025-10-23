@@ -1,0 +1,191 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
+plugins {
+    id 'idea'
+    id 'java'
+    id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
+    id 'org.parchmentmc.librarian.forgegradle' version '1.+'
+    id 'org.spongepowered.mixin' version '0.7-SNAPSHOT'
+    id 'com.gradleup.shadow' version '9.1.0'
+}
+
+group = mod_group_id
+version = mod_version
+base.archivesName = mod_name
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+configurations {
+    shared
+    sharedImplementation.extendsFrom shared
+    minecraftLibrary.extendsFrom shared
+
+
+    clientSide
+    clientImplementation.extendsFrom clientSide
+    minecraftLibrary.extendsFrom clientSide
+
+    serverSide
+    serverImplementation.extendsFrom serverSide
+    minecraftLibrary.extendsFrom serverSide
+
+    compound
+
+    sharedAnnotationProcessor.extendsFrom annotationProcessor
+    clientAnnotationProcessor.extendsFrom annotationProcessor
+    serverAnnotationProcessor.extendsFrom annotationProcessor
+    compoundAnnotationProcessor.extendsFrom annotationProcessor
+}
+
+
+minecraft {
+    mappings channel: mapping_channel, version: mapping_version
+    accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
+}
+
+sourceSets {
+    shared {
+        java.srcDirs = ['src/main/shared/java']
+        resources.srcDirs = ['src/main/shared/resources']
+        compileClasspath += sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.runtimeClasspath
+    }
+    client {
+        java.srcDirs = ['src/main/client/java']
+        resources.srcDirs = ['src/main/client/resources']
+        compileClasspath += sourceSets.shared.compileClasspath
+        runtimeClasspath += sourceSets.shared.runtimeClasspath
+    }
+
+    server {
+        java.srcDirs = ['src/main/server/java']
+        resources.srcDirs = ['src/main/server/resources']
+        compileClasspath += sourceSets.shared.compileClasspath
+        runtimeClasspath += sourceSets.shared.runtimeClasspath
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = "https://repo.spongepowered.org/repository/maven-public/" }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    implementation 'org.spongepowered:spongeapi:7.1.0'
+
+    compileOnly group: 'org.spongepowered', name: 'mixin', version: '0.8.7'
+    annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
+
+    clientImplementation sourceSets.shared.output
+    serverImplementation sourceSets.shared.output
+}
+
+mixin {
+    add sourceSets.server, "server.refmap.json"
+    add sourceSets.client, "client.refmap.json"
+    add sourceSets.shared, "shared.refmap.json"
+}
+
+jar.enabled = false
+shadowJar.enabled = false
+
+
+afterEvaluate {
+    tasks.named('reobfJar') {
+        enabled = false
+    }
+
+    tasks.named('build') {
+        dependsOn tasks.named('compoundJar')
+        dependsOn tasks.named('clientJar')
+        dependsOn tasks.named('serverJar')
+    }
+}
+
+tasks.register('clientJar', ShadowJar) {
+    archiveClassifier.set('client')
+    from sourceSets.client.output
+    from sourceSets.shared.output
+    configurations = [project.configurations.clientSide]
+
+    exclude '**/server.refmap.json'
+
+    manifest {
+        attributes([
+                "MixinConfigs": "client.mixins.json,shared.mixins.json"
+        ])
+    }
+    into('META-INF') {
+        from {
+            def content = file("${rootProject.projectDir}/mods.toml").text.replaceAll(/\$\{(\w+)\}/) { full, key ->
+                if (key == 'SIDE') return 'CLIENT'
+                return rootProject.properties[key] ?: full
+            }
+            project.resources.text.fromString(content)
+        }
+        rename { 'mods.toml' }
+    }
+
+}
+
+tasks.register('serverJar', ShadowJar) {
+    archiveClassifier.set('server')
+    from sourceSets.server.output
+    from sourceSets.shared.output
+    configurations = [project.configurations.serverSide]
+
+    exclude '**/client.refmap.json'
+
+    manifest {
+        attributes([
+                "MixinConfigs": "server.mixins.json,shared.mixins.json"
+        ])
+    }
+    into('META-INF') {
+        from {
+            def content = file("${rootProject.projectDir}/mods.toml").text.replaceAll(/\$\{(\w+)\}/) { full, key ->
+                if (key == 'SIDE') return 'SERVER'
+                return rootProject.properties[key] ?: full
+            }
+            project.resources.text.fromString(content)
+        }
+        rename { 'mods.toml' }
+    }
+
+}
+
+tasks.register('compoundJar', ShadowJar) {
+    archiveClassifier.set('compound')
+    from sourceSets.server.output
+    from sourceSets.client.output
+    from sourceSets.shared.output
+    configurations = [project.configurations.serverSide, project.configurations.clientSide]
+
+    manifest {
+        attributes([
+                "MixinConfigs": "server.mixins.json,client.mixins.json,shared.mixins.json"
+        ])
+    }
+
+    into('META-INF') {
+        from {
+            def content = file("${rootProject.projectDir}/mods.toml").text.replaceAll(/\$\{(\w+)\}/) { full, key ->
+                if (key == 'SIDE') return 'BOTH'
+                return rootProject.properties[key] ?: full
+            }
+            project.resources.text.fromString(content)
+        }
+        rename { 'mods.toml' }
+    }
+}
+
+reobf {
+    clientJar {}
+    serverJar {}
+    compoundJar {}
+}

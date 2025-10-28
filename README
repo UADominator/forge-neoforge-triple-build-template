@@ -1,0 +1,18 @@
+### ⚠️ WARNING
+
+Make sure to run:
+
+```bash
+.\gradlew clean
+```
+
+whenever you switch between
+
+```bash
+.\gradlew runClient
+.\gradlew build
+```
+
+and vice versa.
+
+In the current version, there are observed issues with `mods.toml` in the built file.

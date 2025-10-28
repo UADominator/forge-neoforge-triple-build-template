@@ -20,11 +20,6 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 configurations {
-    shared
-    sharedImplementation.extendsFrom shared
-    minecraftLibrary.extendsFrom shared
-
-
     clientSide
     clientImplementation.extendsFrom clientSide
     minecraftLibrary.extendsFrom clientSide
@@ -41,31 +36,42 @@ configurations {
     compoundAnnotationProcessor.extendsFrom annotationProcessor
 }
 
-
-minecraft {
-    mappings channel: mapping_channel, version: mapping_version
-    accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
-}
-
 sourceSets {
-    shared {
-        java.srcDirs = ['src/main/shared/java']
-        resources.srcDirs = ['src/main/shared/resources']
-        compileClasspath += sourceSets.main.compileClasspath
-        runtimeClasspath += sourceSets.main.runtimeClasspath
-    }
     client {
         java.srcDirs = ['src/main/client/java']
         resources.srcDirs = ['src/main/client/resources']
-        compileClasspath += sourceSets.shared.compileClasspath
-        runtimeClasspath += sourceSets.shared.runtimeClasspath
+        compileClasspath += sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.runtimeClasspath
     }
 
     server {
         java.srcDirs = ['src/main/server/java']
         resources.srcDirs = ['src/main/server/resources']
-        compileClasspath += sourceSets.shared.compileClasspath
-        runtimeClasspath += sourceSets.shared.runtimeClasspath
+        compileClasspath += sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.runtimeClasspath
+    }
+}
+
+minecraft {
+    mappings channel: mapping_channel, version: mapping_version
+    accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
+    copyIdeResources = true
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+
+            mods {
+                islands {
+                    source sourceSets.main
+                    source sourceSets.client
+                    source sourceSets.server
+                }
+            }
+        }
     }
 }
 
@@ -81,19 +87,44 @@ dependencies {
     compileOnly group: 'org.spongepowered', name: 'mixin', version: '0.8.7'
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 
-    clientImplementation sourceSets.shared.output
-    serverImplementation sourceSets.shared.output
+    clientImplementation sourceSets.main.output
+    serverImplementation sourceSets.main.output
+
+    serverImplementation("net.luckperms:api:5.4")
 }
 
 mixin {
     add sourceSets.server, "server.refmap.json"
     add sourceSets.client, "client.refmap.json"
-    add sourceSets.shared, "shared.refmap.json"
+    add sourceSets.main, "shared.refmap.json"
+}
+
+tasks.named('processResources', ProcessResources).configure {
+
+    var replaceProperties = [minecraft_version   : minecraft_version, minecraft_version_range: minecraft_version_range,
+                             forge_version       : forge_version, forge_version_range: forge_version_range,
+                             loader_version_range: loader_version_range,
+                             mod_id              : mod_id, mod_name: mod_name, mod_license: mod_license, mod_version: mod_version,
+                             mod_authors         : mod_authors, mod_description: mod_description,]
+
+    inputs.properties replaceProperties
+
+    def taskNames = gradle.startParameter.taskNames.collect { name -> name.toString().toLowerCase() }
+    def isDevRun = taskNames.any { name -> name.contains('runclient') || name == 'run' }
+
+    if (isDevRun) {
+        filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+            expand replaceProperties + [project: project] + [SIDE: 'BOTH']
+        }
+    } else {
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+            expand replaceProperties + [project: project] + [SIDE: '${SIDE}']
+        }
+    }
 }
 
 jar.enabled = false
 shadowJar.enabled = false
-
 
 afterEvaluate {
     tasks.named('reobfJar') {
@@ -110,7 +141,7 @@ afterEvaluate {
 tasks.register('clientJar', ShadowJar) {
     archiveClassifier.set('client')
     from sourceSets.client.output
-    from sourceSets.shared.output
+    from sourceSets.main.output
     configurations = [project.configurations.clientSide]
 
     exclude '**/server.refmap.json'
@@ -120,23 +151,18 @@ tasks.register('clientJar', ShadowJar) {
                 "MixinConfigs": "client.mixins.json,shared.mixins.json"
         ])
     }
-    into('META-INF') {
-        from {
-            def content = file("${rootProject.projectDir}/mods.toml").text.replaceAll(/\$\{(\w+)\}/) { full, key ->
-                if (key == 'SIDE') return 'CLIENT'
-                return rootProject.properties[key] ?: full
-            }
-            project.resources.text.fromString(content)
-        }
-        rename { 'mods.toml' }
-    }
 
+    filesMatching('META-INF/mods.toml') {
+        expand project.properties + [
+            SIDE: 'CLIENT',
+        ]
+    }
 }
 
 tasks.register('serverJar', ShadowJar) {
     archiveClassifier.set('server')
     from sourceSets.server.output
-    from sourceSets.shared.output
+    from sourceSets.main.output
     configurations = [project.configurations.serverSide]
 
     exclude '**/client.refmap.json'
@@ -146,24 +172,19 @@ tasks.register('serverJar', ShadowJar) {
                 "MixinConfigs": "server.mixins.json,shared.mixins.json"
         ])
     }
-    into('META-INF') {
-        from {
-            def content = file("${rootProject.projectDir}/mods.toml").text.replaceAll(/\$\{(\w+)\}/) { full, key ->
-                if (key == 'SIDE') return 'SERVER'
-                return rootProject.properties[key] ?: full
-            }
-            project.resources.text.fromString(content)
-        }
-        rename { 'mods.toml' }
-    }
 
+    filesMatching('META-INF/mods.toml') {
+        expand project.properties + [
+            SIDE: 'SERVER',
+        ]
+    }
 }
 
 tasks.register('compoundJar', ShadowJar) {
     archiveClassifier.set('compound')
     from sourceSets.server.output
     from sourceSets.client.output
-    from sourceSets.shared.output
+    from sourceSets.main.output
     configurations = [project.configurations.serverSide, project.configurations.clientSide]
 
     manifest {
@@ -172,15 +193,10 @@ tasks.register('compoundJar', ShadowJar) {
         ])
     }
 
-    into('META-INF') {
-        from {
-            def content = file("${rootProject.projectDir}/mods.toml").text.replaceAll(/\$\{(\w+)\}/) { full, key ->
-                if (key == 'SIDE') return 'BOTH'
-                return rootProject.properties[key] ?: full
-            }
-            project.resources.text.fromString(content)
-        }
-        rename { 'mods.toml' }
+    filesMatching('META-INF/mods.toml') {
+        expand project.properties + [
+            SIDE: 'BOTH',
+        ]
     }
 }
 

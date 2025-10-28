@@ -65,7 +65,7 @@ minecraft {
             property 'forge.logging.console.level', 'debug'
 
             mods {
-                islands {
+                "${mod_id}" {
                     source sourceSets.main
                     source sourceSets.client
                     source sourceSets.server

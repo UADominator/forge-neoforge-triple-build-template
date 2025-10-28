@@ -10,7 +10,6 @@
         <module name="forge-neoforge-triple-build-template.client" />
         <module name="forge-neoforge-triple-build-template.main" />
         <module name="forge-neoforge-triple-build-template.server" />
-        <module name="forge-neoforge-triple-build-template.shared" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="17" />

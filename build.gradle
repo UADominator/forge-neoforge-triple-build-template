@@ -117,7 +117,7 @@ tasks.named('processResources', ProcessResources).configure {
             expand replaceProperties + [project: project] + [SIDE: 'BOTH']
         }
     } else {
-    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+        filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
             expand replaceProperties + [project: project] + [SIDE: '${SIDE}']
         }
     }
@@ -154,7 +154,7 @@ tasks.register('clientJar', ShadowJar) {
 
     filesMatching('META-INF/mods.toml') {
         expand project.properties + [
-            SIDE: 'CLIENT',
+                SIDE: 'CLIENT',
         ]
     }
 }
@@ -175,7 +175,7 @@ tasks.register('serverJar', ShadowJar) {
 
     filesMatching('META-INF/mods.toml') {
         expand project.properties + [
-            SIDE: 'SERVER',
+                SIDE: 'SERVER',
         ]
     }
 }
@@ -195,7 +195,7 @@ tasks.register('compoundJar', ShadowJar) {
 
     filesMatching('META-INF/mods.toml') {
         expand project.properties + [
-            SIDE: 'BOTH',
+                SIDE: 'BOTH',
         ]
     }
 }

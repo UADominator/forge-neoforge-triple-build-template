@@ -58,11 +58,39 @@ minecraft {
     copyIdeResources = true
 
     runs {
+        configureEach {
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            property 'forge.enabledGameTestNamespaces', mod_id
+        }
+
         client {
             workingDirectory project.file('run')
 
-            property 'forge.logging.markers', 'REGISTRIES'
-            property 'forge.logging.console.level', 'debug'
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                    source sourceSets.client
+                }
+            }
+        }
+
+        server {
+            workingDirectory project.file('runServer')
+
+            args '--nogui'
+
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                    source sourceSets.server
+                }
+            }
+        }
+
+        test {
+            parent minecraft.runs.client
+            workingDirectory project.file('run')
 
             mods {
                 "${mod_id}" {
@@ -97,20 +125,23 @@ mixin {
     add sourceSets.server, "server.refmap.json"
     add sourceSets.client, "client.refmap.json"
     add sourceSets.main, "shared.refmap.json"
+
+    config "client.mixins.json"
+    config "shared.mixins.json"
+    config "server.mixins.json"
 }
 
 tasks.named('processResources', ProcessResources).configure {
-
     var replaceProperties = [minecraft_version   : minecraft_version, minecraft_version_range: minecraft_version_range,
                              forge_version       : forge_version, forge_version_range: forge_version_range,
                              loader_version_range: loader_version_range,
-                             mod_id              : mod_id, mod_name: mod_name, mod_license: mod_license, mod_version: mod_version,
-                             mod_authors         : mod_authors, mod_description: mod_description,]
+                             mod_id              : mod_id, mod_name: mod_name, mod_version: mod_version,
+                             mod_license         : mod_license, mod_authors: mod_authors, mod_description: mod_description,]
 
     inputs.properties replaceProperties
 
     def taskNames = gradle.startParameter.taskNames.collect { name -> name.toString().toLowerCase() }
-    def isDevRun = taskNames.any { name -> name.contains('runclient') || name == 'run' }
+    def isDevRun = taskNames.any { name -> name.contains('run') || name == 'test' }
 
     if (isDevRun) {
         filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {

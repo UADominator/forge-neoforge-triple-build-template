@@ -1,5 +1,6 @@
 # User-specific stuff
-../1.20.1-dual-build/.idea/
+.idea/
+.vscode/
 
 *.iml
 *.ipr
@@ -113,10 +114,17 @@ gradle-app.setting
 
 # Common working directory
 run/
+runServer/
 runs/
+
+# Auto accept eula
+!runServer/eula.txt
 
 # Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
 !gradle-wrapper.jar
 
 # Ignore Gradle build output directory
 build
+
+# Force apply code style
+!.editorconfig

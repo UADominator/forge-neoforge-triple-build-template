@@ -1,13 +1,14 @@
 package dev.dominator.template;
 
 import net.minecraftforge.fml.common.Mod;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.logging.Logger;
 
 @Mod(Shared.MODID)
 public class Shared {
 	public static final String MODID = "template";
-	public static final Logger LOGGER = Logger.getLogger(MODID);
+	public static final Logger LOGGER = LoggerFactory.getLogger(MODID);
 
 
 	public Shared() {

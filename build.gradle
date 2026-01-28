@@ -13,7 +13,7 @@ group = mod_group_id
 version = mod_version
 base.archivesName = mod_name
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
@@ -38,6 +38,7 @@ configurations {
 
 sourceSets {
     client {
+        ext.refMap = "client.refmap.json"
         java.srcDirs = ['src/main/client/java']
         resources.srcDirs = ['src/main/client/resources']
         compileClasspath += sourceSets.main.compileClasspath
@@ -45,6 +46,7 @@ sourceSets {
     }
 
     server {
+        ext.refMap = "server.refmap.json"
         java.srcDirs = ['src/main/server/java']
         resources.srcDirs = ['src/main/server/resources']
         compileClasspath += sourceSets.main.compileClasspath
@@ -66,6 +68,7 @@ minecraft {
 
         client {
             workingDirectory project.file('run')
+            arg "-mixin.config=client.mixins.json"
 
             mods {
                 "${mod_id}" {
@@ -79,6 +82,7 @@ minecraft {
             workingDirectory project.file('runServer')
 
             args '--nogui'
+            arg "-mixin.config=server.mixins.json"
 
             mods {
                 "${mod_id}" {
@@ -91,6 +95,8 @@ minecraft {
         test {
             parent minecraft.runs.client
             workingDirectory project.file('run')
+            arg "-mixin.config=client.mixins.json"
+            arg "-mixin.config=server.mixins.json"
 
             mods {
                 "${mod_id}" {
@@ -110,7 +116,7 @@ repositories {
 
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
-    implementation 'org.spongepowered:spongeapi:7.1.0'
+    implementation 'org.spongepowered:spongeapi:12.0.0'
 
     compileOnly group: 'org.spongepowered', name: 'mixin', version: '0.8.7'
     annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
@@ -122,13 +128,8 @@ dependencies {
 }
 
 mixin {
-    add sourceSets.server, "server.refmap.json"
-    add sourceSets.client, "client.refmap.json"
     add sourceSets.main, "shared.refmap.json"
-
-    config "client.mixins.json"
     config "shared.mixins.json"
-    config "server.mixins.json"
 }
 
 tasks.named('processResources', ProcessResources).configure {

@@ -15,42 +15,43 @@ base.archivesName = mod_name
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
-}
+def commonMixinsFiles = ["shared.mixins.json"];
+def clientMixinsFiles = ["client.mixins.json"];
+def serverMixinsFiles = ["server.mixins.json"];
 
 configurations {
     clientSide
-    clientImplementation.extendsFrom clientSide
-    minecraftLibrary.extendsFrom clientSide
-
     serverSide
-    serverImplementation.extendsFrom serverSide
-    minecraftLibrary.extendsFrom serverSide
 
-    compound
+    clientCompileClasspath.extendsFrom clientSide
+    serverCompileClasspath.extendsFrom serverSide
 
-    sharedAnnotationProcessor.extendsFrom annotationProcessor
+    clientImplementation.extendsFrom implementation, clientSide
+    serverImplementation.extendsFrom implementation, serverSide
+
+    clientRuntimeClasspath.extendsFrom clientSide
+    serverRuntimeClasspath.extendsFrom serverSide
+
     clientAnnotationProcessor.extendsFrom annotationProcessor
     serverAnnotationProcessor.extendsFrom annotationProcessor
-    compoundAnnotationProcessor.extendsFrom annotationProcessor
+
+    minecraftLibrary.extendsFrom clientSide
+    minecraftLibrary.extendsFrom serverSide
 }
 
 sourceSets {
     client {
-        ext.refMap = "client.refmap.json"
         java.srcDirs = ['src/main/client/java']
         resources.srcDirs = ['src/main/client/resources']
-        compileClasspath += sourceSets.main.compileClasspath
-        runtimeClasspath += sourceSets.main.runtimeClasspath
+        compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+        runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
     }
 
     server {
-        ext.refMap = "server.refmap.json"
         java.srcDirs = ['src/main/server/java']
         resources.srcDirs = ['src/main/server/resources']
-        compileClasspath += sourceSets.main.compileClasspath
-        runtimeClasspath += sourceSets.main.runtimeClasspath
+        compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+        runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
     }
 }
 
@@ -64,12 +65,17 @@ minecraft {
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
             property 'forge.enabledGameTestNamespaces', mod_id
-        }
 
+            (commonMixinsFiles).each { mixin ->
+                arg "-mixin.config=${mixin}"
+            }
+        }
         client {
             workingDirectory project.file('run')
-            arg "-mixin.config=client.mixins.json"
-            arg "-mixin.config=shared.mixins.json"
+
+            (clientMixinsFiles).each { mixin ->
+                arg "-mixin.config=${mixin}"
+            }
 
             mods {
                 "${mod_id}" {
@@ -78,13 +84,14 @@ minecraft {
                 }
             }
         }
-
         server {
             workingDirectory project.file('runServer')
 
             args '--nogui'
-            arg "-mixin.config=server.mixins.json"
-            arg "-mixin.config=shared.mixins.json"
+
+            (serverMixinsFiles).each { mixin ->
+                arg "-mixin.config=${mixin}"
+            }
 
             mods {
                 "${mod_id}" {
@@ -93,13 +100,16 @@ minecraft {
                 }
             }
         }
-
         test {
             parent minecraft.runs.client
             workingDirectory project.file('run')
-            arg "-mixin.config=client.mixins.json"
-            arg "-mixin.config=server.mixins.json"
-            arg "-mixin.config=shared.mixins.json"
+
+            (clientMixinsFiles).each { mixin ->
+                arg "-mixin.config=${mixin}"
+            }
+            (serverMixinsFiles).each { mixin ->
+                arg "-mixin.config=${mixin}"
+            }
 
             mods {
                 "${mod_id}" {
@@ -110,6 +120,12 @@ minecraft {
             }
         }
     }
+}
+
+mixin {
+    add sourceSets.main, "shared.refmap.json"
+    add sourceSets.client, "client.refmap.json"
+    add sourceSets.server, "server.refmap.json"
 }
 
 repositories {
@@ -130,9 +146,7 @@ dependencies {
     serverImplementation("net.luckperms:api:5.4")
 }
 
-mixin {
-    add sourceSets.main, "shared.refmap.json"
-}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 
 tasks.named('processResources', ProcessResources).configure {
     var replaceProperties = [minecraft_version   : minecraft_version, minecraft_version_range: minecraft_version_range,
@@ -160,18 +174,6 @@ tasks.named('processResources', ProcessResources).configure {
 jar.enabled = false
 shadowJar.enabled = false
 
-afterEvaluate {
-    tasks.named('reobfJar') {
-        enabled = false
-    }
-
-    tasks.named('build') {
-        dependsOn tasks.named('compoundJar')
-        dependsOn tasks.named('clientJar')
-        dependsOn tasks.named('serverJar')
-    }
-}
-
 tasks.register('clientJar', ShadowJar) {
     archiveClassifier.set('client')
     from sourceSets.client.output
@@ -182,7 +184,7 @@ tasks.register('clientJar', ShadowJar) {
 
     manifest {
         attributes([
-                "MixinConfigs": "client.mixins.json,shared.mixins.json"
+                "MixinConfigs": (commonMixinsFiles + clientMixinsFiles).join(",")
         ])
     }
 
@@ -203,7 +205,7 @@ tasks.register('serverJar', ShadowJar) {
 
     manifest {
         attributes([
-                "MixinConfigs": "server.mixins.json,shared.mixins.json"
+                "MixinConfigs": (commonMixinsFiles + serverMixinsFiles).join(",")
         ])
     }
 
@@ -223,7 +225,7 @@ tasks.register('compoundJar', ShadowJar) {
 
     manifest {
         attributes([
-                "MixinConfigs": "server.mixins.json,client.mixins.json,shared.mixins.json"
+                "MixinConfigs": (commonMixinsFiles + clientMixinsFiles + serverMixinsFiles).join(",")
         ])
     }
 
@@ -235,7 +237,24 @@ tasks.register('compoundJar', ShadowJar) {
 }
 
 reobf {
-    clientJar {}
-    serverJar {}
-    compoundJar {}
+    clientJar {
+        classpath.from(sourceSets.client.compileClasspath)
+    }
+    serverJar {
+        classpath.from(sourceSets.server.compileClasspath)
+    }
+    compoundJar {
+        classpath.from(sourceSets.client.compileClasspath)
+        classpath.from(sourceSets.server.compileClasspath)
+    }
+}
+
+afterEvaluate {
+    tasks.named('reobfJar') { enabled = false }
+
+    tasks.named('build') {
+        dependsOn tasks.named('compoundJar')
+        dependsOn tasks.named('clientJar')
+        dependsOn tasks.named('serverJar')
+    }
 }
